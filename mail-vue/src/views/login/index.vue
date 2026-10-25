@@ -47,7 +47,7 @@
           <el-button v-for="p in oauthProviders" :key="p.key" class="btn" style="margin-top: 10px" @click="oauthLogin(p.key)">
             <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="18" style="margin-right: 10px" />
             <Icon v-else :icon="p.icon" width="18" height="18" style="margin-right: 10px" />
-            {{ p.key === 'linuxdo' && show !== 'login' ? 'NodeLoc 授权注册' : p.label }}
+            {{ p.key === 'nodeloc' && show !== 'login' ? 'NodeLoc 授权注册' : p.label }}
           </el-button>
         </div>
         <div v-show="show !== 'login'">
@@ -103,7 +103,7 @@
           <el-button v-for="p in oauthProviders" :key="p.key" class="btn" style="margin-top: 10px" @click="oauthLogin(p.key)">
             <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="18" style="margin-right: 10px" />
             <Icon v-else :icon="p.icon" width="18" height="18" style="margin-right: 10px" />
-            {{ p.key === 'linuxdo' && show !== 'login' ? 'NodeLoc 授权注册' : p.label }}
+            {{ p.key === 'nodeloc' && show !== 'login' ? 'NodeLoc 授权注册' : p.label }}
           </el-button>
         </div>
         <template v-if="settingStore.settings.register === 0 || (settingStore.settings.linuxdoSwitch === 0 && settingStore.settings.linuxdoRegisterSwitch === 0)">
@@ -188,7 +188,7 @@ const bindNeedsInvite = ref(false);
 const bindTrustEnough = ref(false);
 const show = ref('login')
 
-const oauthKeys = ['linuxdo', 'github', 'google']
+const oauthKeys = ['nodeloc', 'github', 'google']
 
 const oauthProvider = computed(() => {
   const fromState = route.query.state
@@ -201,9 +201,9 @@ const oauthProviders = computed(() => {
   const allProviders = [
     { key: 'google', label: 'Google', icon: 'devicon:google', iconType: 'iconify' },
     { key: 'github', label: 'GitHub', icon: 'codicon:github-inverted', iconType: 'iconify' },
-    { key: 'linuxdo', label: 'LinuxDo', icon: '/image/linuxdo.webp', iconType: 'image' },
+    { key: 'nodeloc', label: 'NodeLoc', icon: '/image/nodeloc.webp', iconType: 'image' },
   ]
-  return allProviders.filter(p => settingStore.settings[p.key + 'Switch'] === 0 && (show.value === 'login' || p.key !== 'linuxdo' || settingStore.settings.linuxdoRegisterSwitch === 0))
+  return allProviders.filter(p => settingStore.settings[p.key + 'Switch'] === 0 && (show.value === 'login' || p.key !== 'nodeloc' || settingStore.settings.NodeLocRegisterSwitch === 0))
 })
 
 const bindForm = reactive({
@@ -322,7 +322,7 @@ function oauthLogin(provider) {
   const redirectUri = encodeURIComponent(window.location.origin + '/login')
   sessionStorage.setItem('oauthProvider', provider)
   const authorizeUrls = {
-    linuxdo: `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
+    nodeloc: `https://www.nodeloc.com/oauth-provider/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
     github: `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email&state=${provider}`,
     google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
   }
@@ -330,7 +330,7 @@ function oauthLogin(provider) {
 }
 
 const loginFns = {
-  linuxdo: oauthLinuxDoLogin,
+  nodeloc: oauthNodeLocLogin,
   github: oauthGithubLogin,
   google: oauthGoogleLogin,
 }
