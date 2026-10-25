@@ -106,7 +106,7 @@
             {{ p.key === 'nodeloc' && show !== 'login' ? 'NodeLoc 授权注册' : p.label }}
           </el-button>
         </div>
-        <template v-if="settingStore.settings.register === 0 || (settingStore.settings.linuxdoSwitch === 0 && settingStore.settings.linuxdoRegisterSwitch === 0)">
+        <template v-if="settingStore.settings.register === 0 || (settingStore.settings.NodeLocSwitch === 0 && settingStore.settings.NodeLocRegisterSwitch === 0)">
           <div class="switch" @click="show = 'register'" v-if="show === 'login'">{{ $t('noAccount') }}
             <span>{{ $t('regSwitch') }}</span></div>
           <div class="switch" @click="show = 'login'" v-else>{{ $t('hasAccount') }} <span>{{ $t('loginSwitch') }}</span>
@@ -171,7 +171,7 @@ import {cvtR2Url} from "@/utils/convert.js";
 import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
 import {useI18n} from "vue-i18n";
-import {oauthBindUser, oauthLinuxDoLogin, oauthGithubLogin, oauthGoogleLogin} from "@/request/ouath.js";
+import {oauthBindUser, oauthNodeLocLogin, oauthGithubLogin, oauthGoogleLogin} from "@/request/ouath.js";
 import {reloadTurnstileScript} from "@/utils/turnstile-script.js";
 
 const {t} = useI18n();
