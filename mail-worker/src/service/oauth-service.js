@@ -23,10 +23,10 @@ const oauthService = {
 		}
 
 		const setting = await settingService.query(c);
-		const isNodeLoc = oauthRow.platform === 'linuxdo';
+		const isNodeLoc = oauthRow.platform === 'nodeloc';
 		const trustLevel = Number(oauthRow.trustLevel ?? -1);
-		const trustEnough = !isNodeLoc || trustLevel >= Number(setting.linuxdoMinTrustLevel || 0);
-		if (isNodeLoc && setting.linuxdoRegisterSwitch !== 0) {
+		const trustEnough = !isNodeLoc || trustLevel >= Number(setting.nodelocMinTrustLevel || 0);
+		if (isNodeLoc && setting.nodelocRegisterSwitch !== 0) {
 			throw new BizError('NodeLoc 新用户注册已关闭');
 		}
 		if (isNodeLoc && !trustEnough && setting.regKey === 0 && !code) {
@@ -43,21 +43,21 @@ const oauthService = {
 		return { userInfo: oauthRow, token: jwtToken}
 	},
 
-	async linuxDoLogin(c, params) {
+	async nodeLocLogin(c, params) {
 
 		const { code, redirectUri } = params;
 
 		const setting = await settingService.query(c);
-		this.assertEnabled(setting, 'linuxdoSwitch');
+		this.assertEnabled(setting, 'nodelocSwitch');
 
 		const reqParams = new URLSearchParams()
-		reqParams.append('client_id', setting.linuxdoClientId)
-		reqParams.append('client_secret', setting.linuxdoClientSecret)
+		reqParams.append('client_id', setting.nodelocClientId)
+		reqParams.append('client_secret', setting.nodelocClientSecret)
 		reqParams.append('code', code)
 		reqParams.append('redirect_uri', redirectUri)
 		reqParams.append('grant_type', 'authorization_code')
 
-		const tokenRes = await fetch("https://connect.linux.do/oauth2/token", {
+		const tokenRes = await fetch("https://www.nodeloc.com/oauth-provider/token", {
 			method: "POST",
 			headers: { "Content-Type": "application/x-www-form-urlencoded" },
 			body: reqParams.toString()
@@ -69,7 +69,7 @@ const oauthService = {
 
 		const token = await tokenRes.json()
 
-		const userRes = await fetch('https://connect.linux.do/api/user', {
+		const userRes = await fetch('https://www.nodeloc.com/oauth-provider/userinfo', {
 			headers: {
 				Authorization: 'Bearer ' + token.access_token
 			}
@@ -81,12 +81,13 @@ const oauthService = {
 
 		const userInfo = await userRes.json();
 
-		userInfo.oauthUserId = String(userInfo.id);
-		userInfo.active = userInfo.active ? 0 : 1;
-		userInfo.silenced = userInfo.silenced ? 0 : 1;
-		userInfo.trustLevel = userInfo.trust_level;
-		userInfo.avatar = userInfo.avatar_url;
-		userInfo.platform = 'linuxdo';
+		userInfo.oauthUserId = String(userInfo.sub ?? userInfo.id ?? '');
+		if (!userInfo.oauthUserId) throw new BizError('NodeLoc 未返回用户唯一标识');
+		userInfo.username = userInfo.preferred_username ?? userInfo.username ?? userInfo.email ?? '';
+		userInfo.name = userInfo.name ?? userInfo.username;
+		userInfo.trustLevel = Number(userInfo.trust_level ?? userInfo.trustLevel ?? -1);
+		userInfo.avatar = userInfo.picture ?? userInfo.avatar_url ?? '';
+		userInfo.platform = 'nodeloc';
 
 		return await this.saveAndLogin(c, userInfo)
 	},
@@ -139,6 +140,7 @@ const oauthService = {
 		userInfo.username = userInfo.login;
 		userInfo.avatar = userInfo.avatar_url;
 		userInfo.platform = 'github';
+		userInfo.githubCreatedAt = userInfo.created_at;
 
 		return await this.saveAndLogin(c, userInfo);
 	},
@@ -192,17 +194,29 @@ const oauthService = {
 
 	async saveAndLogin(c, userInfo) {
 
+		const githubCreatedAt = userInfo.githubCreatedAt;
+		delete userInfo.githubCreatedAt;
 		const oauthRow = await this.saveUser(c, userInfo);
 		const userRow = await userService.selectByIdIncludeDel(c, oauthRow.userId);
 
 		if (!userRow) {
 			const setting = await settingService.query(c);
-			const isNodeLoc = userInfo.platform === 'linuxdo';
-			if (isNodeLoc && setting.linuxdoRegisterSwitch !== 0) {
+			if (userInfo.platform === 'github') {
+				const amount = Math.max(0, Number(setting.githubMinAgeValue || 0));
+				const unitDays = { days: 1, months: 30.4375, years: 365.25, centuries: 36525 };
+				const requiredDays = amount * (unitDays[setting.githubMinAgeUnit] || 1);
+				if (requiredDays > 0) {
+					const createdAt = Date.parse(githubCreatedAt || '');
+					if (!Number.isFinite(createdAt)) throw new BizError('无法读取 GitHub 账号注册时间，暂时无法注册');
+					if (Date.now() - createdAt < requiredDays * 86400000) throw new BizError(`GitHub 账号注册时间不足，至少需要 ${amount} ${({days:'天',months:'个月',years:'年',centuries:'世纪'})[setting.githubMinAgeUnit] || '天'}`);
+				}
+			}
+			const isNodeLoc = userInfo.platform === 'nodeloc';
+			if (isNodeLoc && setting.nodelocRegisterSwitch !== 0) {
 				throw new BizError('NodeLoc 新用户注册已关闭');
 			}
 			const trustLevel = Number(oauthRow.trustLevel ?? -1);
-			const trustEnough = !isNodeLoc || trustLevel >= Number(setting.linuxdoMinTrustLevel || 0);
+			const trustEnough = !isNodeLoc || trustLevel >= Number(setting.nodelocMinTrustLevel || 0);
 			return { userInfo: oauthRow, token: null, needsInvite: isNodeLoc ? (!trustEnough && setting.regKey === 0) : setting.regKey === 0, trustEnough: isNodeLoc ? trustEnough : false };
 		}
 

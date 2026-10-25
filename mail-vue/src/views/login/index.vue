@@ -47,7 +47,7 @@
           <el-button v-for="p in oauthProviders" :key="p.key" class="btn" style="margin-top: 10px" @click="oauthLogin(p.key)">
             <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="18" style="margin-right: 10px" />
             <Icon v-else :icon="p.icon" width="18" height="18" style="margin-right: 10px" />
-            {{ p.key === 'linuxdo' && show !== 'login' ? 'NodeLoc 授权注册' : p.label }}
+            {{ p.key === 'nodeloc' && show !== 'login' ? 'NodeLoc 授权注册' : p.label }}
           </el-button>
         </div>
         <div v-show="show !== 'login'">
@@ -103,10 +103,10 @@
           <el-button v-for="p in oauthProviders" :key="p.key" class="btn" style="margin-top: 10px" @click="oauthLogin(p.key)">
             <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="18" style="margin-right: 10px" />
             <Icon v-else :icon="p.icon" width="18" height="18" style="margin-right: 10px" />
-            {{ p.key === 'linuxdo' && show !== 'login' ? 'NodeLoc 授权注册' : p.label }}
+            {{ p.key === 'nodeloc' && show !== 'login' ? 'NodeLoc 授权注册' : p.label }}
           </el-button>
         </div>
-        <template v-if="settingStore.settings.register === 0 || (settingStore.settings.linuxdoSwitch === 0 && settingStore.settings.linuxdoRegisterSwitch === 0)">
+        <template v-if="settingStore.settings.register === 0 || (settingStore.settings.nodelocSwitch === 0 && settingStore.settings.nodelocRegisterSwitch === 0)">
           <div class="switch" @click="show = 'register'" v-if="show === 'login'">{{ $t('noAccount') }}
             <span>{{ $t('regSwitch') }}</span></div>
           <div class="switch" @click="show = 'login'" v-else>{{ $t('hasAccount') }} <span>{{ $t('loginSwitch') }}</span>
@@ -171,7 +171,7 @@ import {cvtR2Url} from "@/utils/convert.js";
 import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
 import {useI18n} from "vue-i18n";
-import {oauthBindUser, oauthLinuxDoLogin, oauthGithubLogin, oauthGoogleLogin} from "@/request/ouath.js";
+import {oauthBindUser, oauthNodeLocLogin, oauthGithubLogin, oauthGoogleLogin} from "@/request/ouath.js";
 import {reloadTurnstileScript} from "@/utils/turnstile-script.js";
 
 const {t} = useI18n();
@@ -188,7 +188,7 @@ const bindNeedsInvite = ref(false);
 const bindTrustEnough = ref(false);
 const show = ref('login')
 
-const oauthKeys = ['linuxdo', 'github', 'google']
+const oauthKeys = ['nodeloc', 'github', 'google']
 
 const oauthProvider = computed(() => {
   const fromState = route.query.state
@@ -201,9 +201,9 @@ const oauthProviders = computed(() => {
   const allProviders = [
     { key: 'google', label: 'Google', icon: 'devicon:google', iconType: 'iconify' },
     { key: 'github', label: 'GitHub', icon: 'codicon:github-inverted', iconType: 'iconify' },
-    { key: 'linuxdo', label: 'LinuxDo', icon: '/image/linuxdo.webp', iconType: 'image' },
+    { key: 'nodeloc', label: 'NodeLoc', icon: 'mdi:account-key', iconType: 'iconify' },
   ]
-  return allProviders.filter(p => settingStore.settings[p.key + 'Switch'] === 0 && (show.value === 'login' || p.key !== 'linuxdo' || settingStore.settings.linuxdoRegisterSwitch === 0))
+  return allProviders.filter(p => settingStore.settings[p.key + 'Switch'] === 0 && (show.value === 'login' || p.key !== 'nodeloc' || settingStore.settings.nodelocRegisterSwitch === 0))
 })
 
 const bindForm = reactive({
@@ -322,7 +322,7 @@ function oauthLogin(provider) {
   const redirectUri = encodeURIComponent(window.location.origin + '/login')
   sessionStorage.setItem('oauthProvider', provider)
   const authorizeUrls = {
-    linuxdo: `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
+    nodeloc: `https://www.nodeloc.com/oauth-provider/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
     github: `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email&state=${provider}`,
     google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
   }
@@ -330,7 +330,7 @@ function oauthLogin(provider) {
 }
 
 const loginFns = {
-  linuxdo: oauthLinuxDoLogin,
+  nodeloc: oauthNodeLocLogin,
   github: oauthGithubLogin,
   google: oauthGoogleLogin,
 }

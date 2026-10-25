@@ -515,7 +515,20 @@
         <div class="dialog-content">
           <el-input type="text" :placeholder="$t('clientId')" v-model="oauthForm.clientId"/>
           <el-input type="text" style="margin-top: 15px" :placeholder="$t('clientSecret')" v-model="oauthForm.clientSecret"/>
-          <template v-if="oauthForm.key === 'linuxdo'">
+          <template v-if="oauthForm.key === 'github'">
+            <div class="setting-item" style="margin-top: 15px">
+              <span>GitHub 账号注册时间至少</span>
+              <el-input-number v-model="oauthForm.githubMinAgeValue" :min="0" :max="10000" :step="1"/>
+              <el-select v-model="oauthForm.githubMinAgeUnit" style="width: 120px; margin-left: 8px">
+                <el-option label="天" value="days"/>
+                <el-option label="个月" value="months"/>
+                <el-option label="年" value="years"/>
+                <el-option label="世纪" value="centuries"/>
+              </el-select>
+            </div>
+            <div style="font-size: 12px;color: var(--el-text-color-secondary);margin-top: 4px">设置为 0 表示不限制；仅限制首次注册，已注册用户仍可登录。</div>
+          </template>
+          <template v-if="oauthForm.key === 'nodeloc'">
             <div class="setting-item" style="margin-top: 15px">
               <span>允许 NodeLoc 新用户注册</span>
               <el-switch v-model="oauthForm.registerSwitch" :active-value="0" :inactive-value="1"/>
@@ -998,7 +1011,7 @@ const turnstileForm = reactive({
 const oauthPlatforms = [
   { key: 'google', label: 'Google', icon: 'devicon:google', iconType: 'iconify' },
   { key: 'github', label: 'GitHub', icon: 'codicon:github-inverted', iconType: 'iconify' },
-  { key: 'linuxdo', label: 'LinuxDo', icon: '/image/linuxdo.webp', iconType: 'image' },
+  { key: 'nodeloc', label: 'NodeLoc', icon: 'mdi:account-key', iconType: 'iconify' },
 ]
 const oauthSettingShow = ref(false)
 const oauthForm = reactive({
@@ -1009,6 +1022,8 @@ const oauthForm = reactive({
   switch: 1,
   registerSwitch: 0,
   minTrustLevel: 0,
+  githubMinAgeValue: 0,
+  githubMinAgeUnit: 'days',
 })
 
 const s3 = reactive({
@@ -1557,8 +1572,10 @@ function openOauthSetting(p) {
   oauthForm.clientId = setting.value[p.key + 'ClientId'] || ''
   oauthForm.clientSecret = setting.value[p.key + 'ClientSecret'] || ''
   oauthForm.switch = setting.value[p.key + 'Switch'] ?? 1
-  oauthForm.registerSwitch = setting.value.linuxdoRegisterSwitch ?? 0
-  oauthForm.minTrustLevel = setting.value.linuxdoMinTrustLevel ?? 0
+  oauthForm.registerSwitch = setting.value.nodelocRegisterSwitch ?? 0
+  oauthForm.minTrustLevel = setting.value.nodelocMinTrustLevel ?? 0
+  oauthForm.githubMinAgeValue = setting.value.githubMinAgeValue ?? 0
+  oauthForm.githubMinAgeUnit = setting.value.githubMinAgeUnit ?? 'days'
   oauthSettingShow.value = true
 }
 
@@ -1567,9 +1584,13 @@ function saveOauth() {
   form[oauthForm.key + 'ClientId'] = oauthForm.clientId
   form[oauthForm.key + 'ClientSecret'] = oauthForm.clientSecret
   form[oauthForm.key + 'Switch'] = oauthForm.switch
-  if (oauthForm.key === 'linuxdo') {
-    form.linuxdoRegisterSwitch = oauthForm.registerSwitch
-    form.linuxdoMinTrustLevel = oauthForm.minTrustLevel
+  if (oauthForm.key === 'github') {
+    form.githubMinAgeValue = oauthForm.githubMinAgeValue
+    form.githubMinAgeUnit = oauthForm.githubMinAgeUnit
+  }
+  if (oauthForm.key === 'nodeloc') {
+    form.nodelocRegisterSwitch = oauthForm.registerSwitch
+    form.nodelocMinTrustLevel = oauthForm.minTrustLevel
   }
   editSetting(form)
 }

@@ -1,7 +1,7 @@
 import http from '@/axios/index.js';
 
-export function oauthLinuxDoLogin(code, redirectUri) {
-    return http.post('/oauth/linuxDo/login',{code, redirectUri})
+export function oauthNodeLocLogin(code, redirectUri) {
+    return http.post('/oauth/nodeLoc/login',{code, redirectUri})
 }
 
 export function oauthGithubLogin(code, redirectUri) {

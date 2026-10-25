@@ -1,0 +1,14 @@
+Cloud Mail 修改说明
+
+本次修改内容：
+1. OAuth2 前端列表只保留 Google、GitHub、NodeLoc。
+2. NodeLoc 的前端授权 state、请求方法、后端路由、服务方法、platform 标识和设置字段统一使用 nodeloc 命名。
+3. NodeLoc OAuth 端点改为 https://www.nodeloc.com/oauth-provider/authorize、/token、/userinfo。
+4. GitHub OAuth 设置弹窗新增账号注册时长限制，支持天、个月、年、世纪；设为 0 表示不限制。
+5. 后端仅在 GitHub OAuth 账号首次注册时检查 GitHub API 返回的 created_at；已绑定用户登录不受限制。
+6. 数据库初始化迁移新增 nodeloc 配置字段和 GitHub 注册时长字段。
+
+部署注意：
+- 请先备份数据库，再替换源码并按项目原流程部署/执行数据库初始化。
+- NodeLoc 的信任等级是否能从当前 /oauth-provider/userinfo 返回，需要用真实账号确认；若未返回 trust_level，当前代码会按 -1 处理，不会伪造等级。
+- 已做后端 JavaScript 语法检查及源码残留扫描。当前环境无法联网安装前端依赖，因此没有完成 Vue 构建，也没有完成真实 OAuth 线上测试。

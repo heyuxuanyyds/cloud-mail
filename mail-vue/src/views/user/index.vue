@@ -411,14 +411,14 @@ const settingStore = useSettingStore()
 const oauthPlatformMap = {
   google: { key: 'google', label: 'Google', icon: 'devicon:google', iconType: 'iconify' },
   github: { key: 'github', label: 'GitHub', icon: 'codicon:github-inverted', iconType: 'iconify' },
-  linuxdo: { key: 'linuxdo', label: 'LinuxDo', icon: '/image/linuxdo.webp', iconType: 'image' },
+  nodeloc: { key: 'nodeloc', label: 'NodeLoc', icon: 'mdi:account-key', iconType: 'iconify' },
 }
 function oauthPlatform(row) {
   if (row?.platform && oauthPlatformMap[row.platform]) {
     return oauthPlatformMap[row.platform]
   }
   // 旧数据可能只有 username、无 platform
-  if (row?.username) return oauthPlatformMap.linuxdo
+  if (row?.username) return oauthPlatformMap.nodeloc
   return null
 }
 const filteredValue = ['normal', 'del']
