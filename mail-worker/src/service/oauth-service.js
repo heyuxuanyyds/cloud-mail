@@ -24,16 +24,21 @@ const oauthService = {
 
 		const setting = await settingService.query(c);
 		const isNodeLoc = oauthRow.platform === 'nodeloc';
+		const isGithub = oauthRow.platform === 'github';
 		const trustLevel = Number(oauthRow.trustLevel ?? -1);
-		const trustEnough = !isNodeLoc || trustLevel >= Number(setting.nodelocMinTrustLevel || 0);
+		const minTrust = Number(setting.nodelocMinTrustLevel || 0);
+		const noInviteTrust = Number(setting.nodelocNoInviteTrustLevel || 0);
+		const trustEnough = !isNodeLoc || trustLevel >= noInviteTrust;
+		if (isNodeLoc && trustLevel < minTrust) throw new BizError(`等级不足（当前等级 ${trustLevel}，最低要求等级 ${minTrust}），无法注册`);
+		if (isGithub && !this.githubAgeEnough(oauthRow.githubCreatedAt, setting, 'min')) throw new BizError(this.githubMinAgeMessage(oauthRow.githubCreatedAt, setting));
 		if (isNodeLoc && setting.nodelocRegisterSwitch !== 0) {
 			throw new BizError('NodeLoc 新用户注册已关闭');
 		}
-		if (isNodeLoc && !trustEnough && setting.regKey === 0 && !code) {
-			throw new BizError('信任等级不足，请输入邀请码');
-		}
+		const githubNoInviteEnough = !isGithub || this.githubAgeEnough(oauthRow.githubCreatedAt, setting, 'noInvite');
+		const needsInvite = setting.regKey === 0 && ((isNodeLoc && !trustEnough) || (isGithub && !githubNoInviteEnough));
+		if (needsInvite && !code) throw new BizError(isNodeLoc ? `等级不足（当前等级 ${trustLevel}，免邀请码要求等级 ${noInviteTrust}），转为邀请码注册` : this.githubAgeMessage(oauthRow.githubCreatedAt, setting, 'noInvite'));
 		const effectivePassword = password || cryptoUtils.genRandomPwd();
-		await loginService.register(c, { email, password: effectivePassword, code: isNodeLoc && trustEnough ? '' : code }, true, { skipRegKey: isNodeLoc && trustEnough });
+		await loginService.register(c, { email, password: effectivePassword, code: needsInvite ? code : '' }, true, { skipRegKey: !needsInvite });
 
 		userRow = await userService.selectByEmail(c, email);
 
@@ -195,29 +200,26 @@ const oauthService = {
 	async saveAndLogin(c, userInfo) {
 
 		const githubCreatedAt = userInfo.githubCreatedAt;
-		delete userInfo.githubCreatedAt;
 		const oauthRow = await this.saveUser(c, userInfo);
 		const userRow = await userService.selectByIdIncludeDel(c, oauthRow.userId);
 
 		if (!userRow) {
 			const setting = await settingService.query(c);
-			if (userInfo.platform === 'github') {
-				const amount = Math.max(0, Number(setting.githubMinAgeValue || 0));
-				const unitDays = { days: 1, months: 30.4375, years: 365.25, centuries: 36525 };
-				const requiredDays = amount * (unitDays[setting.githubMinAgeUnit] || 1);
-				if (requiredDays > 0) {
-					const createdAt = Date.parse(githubCreatedAt || '');
-					if (!Number.isFinite(createdAt)) throw new BizError('无法读取 GitHub 账号注册时间，暂时无法注册');
-					if (Date.now() - createdAt < requiredDays * 86400000) throw new BizError(`GitHub 账号注册时间不足，至少需要 ${amount} ${({days:'天',months:'个月',years:'年',centuries:'世纪'})[setting.githubMinAgeUnit] || '天'}`);
-				}
-			}
+			const isGithub = userInfo.platform === 'github';
 			const isNodeLoc = userInfo.platform === 'nodeloc';
-			if (isNodeLoc && setting.nodelocRegisterSwitch !== 0) {
-				throw new BizError('NodeLoc 新用户注册已关闭');
-			}
+			if (isNodeLoc && setting.nodelocRegisterSwitch !== 0) throw new BizError('NodeLoc 新用户注册已关闭');
 			const trustLevel = Number(oauthRow.trustLevel ?? -1);
-			const trustEnough = !isNodeLoc || trustLevel >= Number(setting.nodelocMinTrustLevel || 0);
-			return { userInfo: oauthRow, token: null, needsInvite: isNodeLoc ? (!trustEnough && setting.regKey === 0) : setting.regKey === 0, trustEnough: isNodeLoc ? trustEnough : false };
+			const minTrust = Number(setting.nodelocMinTrustLevel || 0);
+			const noInviteTrust = Number(setting.nodelocNoInviteTrustLevel || 0);
+			if (isNodeLoc && trustLevel < minTrust) throw new BizError(`等级不足（当前等级 ${trustLevel}，最低要求等级 ${minTrust}），无法注册`);
+			if (isGithub && !this.githubAgeEnough(githubCreatedAt, setting, 'min')) throw new BizError(this.githubMinAgeMessage(githubCreatedAt, setting));
+			const trustEnough = !isNodeLoc || trustLevel >= noInviteTrust;
+			const githubNoInviteEnough = !isGithub || this.githubAgeEnough(githubCreatedAt, setting, 'noInvite');
+			const needsInvite = setting.regKey === 0 && ((isNodeLoc && !trustEnough) || (isGithub && !githubNoInviteEnough));
+			let notice = '';
+			if (needsInvite && isNodeLoc) notice = `等级不足（当前等级 ${trustLevel}，免邀请码要求等级 ${noInviteTrust}），自动转为邀请码注册`;
+			if (needsInvite && isGithub) notice = this.githubAgeMessage(githubCreatedAt, setting, 'noInvite');
+			return { userInfo: oauthRow, token: null, needsInvite, trustEnough: isNodeLoc ? trustEnough : true, notice };
 		}
 
 		const JwtToken = await loginService.login(c, { email: userRow.email, password: null }, true);
@@ -234,6 +236,33 @@ const oauthService = {
 			return await orm(c).update(oauth).set(userInfo).where(eq(oauth.oauthUserId, userInfo.oauthUserId)).returning().get();
 		}
 
+	},
+
+	githubAgeEnough(createdAtValue, setting, mode = 'min') {
+		const amount = Math.max(0, Number(mode === 'noInvite' ? (setting.githubNoInviteAgeValue ?? setting.githubMinAgeValue ?? 0) : (setting.githubMinAgeValue || 0)));
+		if (amount === 0) return true;
+		const unitDays = { days: 1, months: 30.4375, years: 365.25, centuries: 36525 };
+		const createdAt = Date.parse(createdAtValue || '');
+		if (!Number.isFinite(createdAt)) return false;
+		const unit = mode === 'noInvite' ? (setting.githubNoInviteAgeUnit || setting.githubMinAgeUnit) : setting.githubMinAgeUnit;
+		return Date.now() - createdAt >= amount * (unitDays[unit] || 1) * 86400000;
+	},
+
+	githubAgeMessage(createdAtValue, setting, mode = 'noInvite') {
+		const amount = Math.max(0, Number(mode === 'noInvite' ? (setting.githubNoInviteAgeValue ?? setting.githubMinAgeValue ?? 0) : (setting.githubMinAgeValue || 0)));
+		const unit = mode === 'noInvite' ? (setting.githubNoInviteAgeUnit || setting.githubMinAgeUnit) : setting.githubMinAgeUnit;
+		const unitLabels = { days: '天', months: '个月', years: '年', centuries: '世纪' };
+		const createdAt = Date.parse(createdAtValue || '');
+		const currentAgeDays = Number.isFinite(createdAt) ? Math.max(0, Math.floor((Date.now() - createdAt) / 86400000)) : '未知';
+		return `注册时间不足（当前账号注册 ${currentAgeDays}${currentAgeDays === '未知' ? '' : '天'}，免邀请码要求 ${amount}${unitLabels[unit] || '天'}），自动转为邀请码注册`;
+	},
+
+	githubMinAgeMessage(createdAtValue, setting) {
+		const amount = Math.max(0, Number(setting.githubMinAgeValue || 0));
+		const unitLabels = { days: '天', months: '个月', years: '年', centuries: '世纪' };
+		const createdAt = Date.parse(createdAtValue || '');
+		const currentAgeDays = Number.isFinite(createdAt) ? Math.max(0, Math.floor((Date.now() - createdAt) / 86400000)) : '未知';
+		return `注册时间不足（当前账号注册 ${currentAgeDays}${currentAgeDays === '未知' ? '' : '天'}，最低要求 ${amount}${unitLabels[setting.githubMinAgeUnit] || '天'}），无法注册`;
 	},
 
 	assertEnabled(setting, switchKey) {

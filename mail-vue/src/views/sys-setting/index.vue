@@ -526,7 +526,10 @@
                 <el-option label="世纪" value="centuries"/>
               </el-select>
             </div>
-            <div style="font-size: 12px;color: var(--el-text-color-secondary);margin-top: 4px">设置为 0 表示不限制；仅限制首次注册，已注册用户仍可登录。</div>
+            <div style="margin-top: 12px"><div style="margin-bottom: 6px">免邀请码注册至少需要账号年龄</div>
+              <el-input-number v-model="oauthForm.githubNoInviteAgeValue" :min="0" :max="10000" :step="1"/>
+              <el-select v-model="oauthForm.githubNoInviteAgeUnit" style="width: 120px; margin-left: 8px"><el-option label="天" value="days"/><el-option label="个月" value="months"/><el-option label="年" value="years"/><el-option label="世纪" value="centuries"/></el-select></div>
+            <div style="font-size: 12px;color: var(--el-text-color-secondary);margin-top: 4px">低于最低注册时长无法注册；达到最低时长但未达到免邀请码时长，开启邀请码注册时需填写邀请码。设为 0 表示不限制；已有账号仍可登录。</div>
           </template>
           <template v-if="oauthForm.key === 'nodeloc'">
             <div class="setting-item" style="margin-top: 15px">
@@ -536,7 +539,8 @@
             <div style="margin-top: 12px">
               <div style="margin-bottom: 6px">新用户直接注册最低信任等级（0-4）</div>
               <el-input-number v-model="oauthForm.minTrustLevel" :min="0" :max="4" :step="1"/>
-              <div style="font-size: 12px;color: var(--el-text-color-secondary);margin-top: 4px">等级达到要求无需邀请码；等级不足时按下方邀请码注册设置处理。已绑定用户不检查等级。</div>
+              <div style="margin-top: 12px;margin-bottom: 6px">免邀请码注册最低信任等级（0-4）</div><el-input-number v-model="oauthForm.noInviteTrustLevel" :min="0" :max="4" :step="1"/>
+              <div style="font-size: 12px;color: var(--el-text-color-secondary);margin-top: 4px">低于最低等级无法注册；达到最低等级但未达到免邀请码等级，开启邀请码注册时需填写邀请码。已绑定用户仍可登录。</div>
             </div>
           </template>
         </div>
@@ -1022,8 +1026,11 @@ const oauthForm = reactive({
   switch: 1,
   registerSwitch: 0,
   minTrustLevel: 0,
+  noInviteTrustLevel: 0,
   githubMinAgeValue: 0,
   githubMinAgeUnit: 'days',
+  githubNoInviteAgeValue: 0,
+  githubNoInviteAgeUnit: 'days',
 })
 
 const s3 = reactive({
@@ -1574,8 +1581,11 @@ function openOauthSetting(p) {
   oauthForm.switch = setting.value[p.key + 'Switch'] ?? 1
   oauthForm.registerSwitch = setting.value.nodelocRegisterSwitch ?? 0
   oauthForm.minTrustLevel = setting.value.nodelocMinTrustLevel ?? 0
+  oauthForm.noInviteTrustLevel = setting.value.nodelocNoInviteTrustLevel ?? 0
   oauthForm.githubMinAgeValue = setting.value.githubMinAgeValue ?? 0
   oauthForm.githubMinAgeUnit = setting.value.githubMinAgeUnit ?? 'days'
+  oauthForm.githubNoInviteAgeValue = setting.value.githubNoInviteAgeValue ?? setting.value.githubMinAgeValue ?? 0
+  oauthForm.githubNoInviteAgeUnit = setting.value.githubNoInviteAgeUnit ?? setting.value.githubMinAgeUnit ?? 'days'
   oauthSettingShow.value = true
 }
 
@@ -1587,10 +1597,13 @@ function saveOauth() {
   if (oauthForm.key === 'github') {
     form.githubMinAgeValue = oauthForm.githubMinAgeValue
     form.githubMinAgeUnit = oauthForm.githubMinAgeUnit
+    form.githubNoInviteAgeValue = oauthForm.githubNoInviteAgeValue
+    form.githubNoInviteAgeUnit = oauthForm.githubNoInviteAgeUnit
   }
   if (oauthForm.key === 'nodeloc') {
     form.nodelocRegisterSwitch = oauthForm.registerSwitch
     form.nodelocMinTrustLevel = oauthForm.minTrustLevel
+    form.nodelocNoInviteTrustLevel = oauthForm.noInviteTrustLevel
   }
   editSetting(form)
 }

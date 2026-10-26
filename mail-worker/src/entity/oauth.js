@@ -9,6 +9,7 @@ export const oauth = sqliteTable('oauth', {
 	avatar: text('avatar'),
 	active: integer('active'),
 	trustLevel: integer('trust_level'),
+	githubCreatedAt: text('github_created_at'),
 	silenced: integer('silenced'),
 	createTime: text('create_time').default(sql`CURRENT_TIMESTAMP`).notNull(),
 	platform: text('platform'),

@@ -354,6 +354,10 @@ async function oauthGetUser() {
     bindNeedsInvite.value = !!data.needsInvite;
     bindTrustEnough.value = data.trustEnough !== false;
 
+    if (data.needsInvite && data.notice) {
+      ElMessage({ message: data.notice, type: 'warning', duration: 5000, plain: true })
+    }
+
     if (!data.token) {
       showBindForm.value = true
       oauthLoading.value = false

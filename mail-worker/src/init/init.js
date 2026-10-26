@@ -35,10 +35,16 @@ const dbInit = {
 		await this.v3_4DB(c);
 		await this.v3_5DB(c);
 		await this.v3_6DB(c);
+		await this.v3_7DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
 	},
 
+
+	async v3_7DB(c) {
+		try { await c.env.db.prepare(`ALTER TABLE oauth ADD COLUMN github_created_at TEXT;`).run(); }
+		catch (e) { if (!String(e.message).includes('duplicate column')) console.warn(`跳过字段：${e.message}`); }
+	},
 
 	async v3_6DB(c) {
 		for (const sql of [
@@ -48,7 +54,10 @@ const dbInit = {
 			`ALTER TABLE setting ADD COLUMN nodeloc_client_secret TEXT NOT NULL DEFAULT '';`,
 			`ALTER TABLE setting ADD COLUMN nodeloc_switch INTEGER NOT NULL DEFAULT 1;`,
 			`ALTER TABLE setting ADD COLUMN nodeloc_register_switch INTEGER NOT NULL DEFAULT 0;`,
-			`ALTER TABLE setting ADD COLUMN nodeloc_min_trust_level INTEGER NOT NULL DEFAULT 0;`
+			`ALTER TABLE setting ADD COLUMN nodeloc_min_trust_level INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN nodeloc_no_invite_trust_level INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN github_no_invite_age_value INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN github_no_invite_age_unit TEXT NOT NULL DEFAULT 'days';`
 		]) {
 			try { await c.env.db.prepare(sql).run(); }
 			catch (e) { if (!String(e.message).includes('duplicate column')) console.warn(`跳过字段：${e.message}`); }
