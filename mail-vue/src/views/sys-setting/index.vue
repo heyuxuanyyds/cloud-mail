@@ -516,20 +516,23 @@
           <el-input type="text" :placeholder="$t('clientId')" v-model="oauthForm.clientId"/>
           <el-input type="text" style="margin-top: 15px" :placeholder="$t('clientSecret')" v-model="oauthForm.clientSecret"/>
           <template v-if="oauthForm.key === 'github'">
-            <div class="setting-item" style="margin-top: 15px">
-              <span>GitHub 账号注册时间至少</span>
-              <el-input-number v-model="oauthForm.githubMinAgeValue" :min="0" :max="10000" :step="1"/>
-              <el-select v-model="oauthForm.githubMinAgeUnit" style="width: 120px; margin-left: 8px">
-                <el-option label="天" value="days"/>
-                <el-option label="个月" value="months"/>
-                <el-option label="年" value="years"/>
-                <el-option label="世纪" value="centuries"/>
-              </el-select>
+            <div class="oauth-threshold" style="margin-top: 15px">
+              <div class="oauth-threshold-label">GitHub 账号注册时长最低要求</div>
+              <div class="oauth-threshold-controls">
+                <el-input-number v-model="oauthForm.githubMinAgeValue" :min="0" :max="10000" :step="1" controls-position="right" />
+                <el-select v-model="oauthForm.githubMinAgeUnit" class="oauth-threshold-unit">
+                  <el-option label="天" value="days"/><el-option label="个月" value="months"/><el-option label="年" value="years"/><el-option label="世纪" value="centuries"/>
+                </el-select>
+              </div>
             </div>
-            <div style="margin-top: 12px"><div style="margin-bottom: 6px">免邀请码注册至少需要账号年龄</div>
-              <el-input-number v-model="oauthForm.githubNoInviteAgeValue" :min="0" :max="10000" :step="1"/>
-              <el-select v-model="oauthForm.githubNoInviteAgeUnit" style="width: 120px; margin-left: 8px"><el-option label="天" value="days"/><el-option label="个月" value="months"/><el-option label="年" value="years"/><el-option label="世纪" value="centuries"/></el-select></div>
-            <div style="font-size: 12px;color: var(--el-text-color-secondary);margin-top: 4px">低于最低注册时长无法注册；达到最低时长但未达到免邀请码时长，开启邀请码注册时需填写邀请码。设为 0 表示不限制；已有账号仍可登录。</div>
+            <div class="oauth-threshold" style="margin-top: 12px">
+              <div class="oauth-threshold-label">免邀请码注册最低账号年龄</div>
+              <div class="oauth-threshold-controls">
+                <el-input-number v-model="oauthForm.githubNoInviteAgeValue" :min="0" :max="10000" :step="1" controls-position="right" />
+                <el-select v-model="oauthForm.githubNoInviteAgeUnit" class="oauth-threshold-unit"><el-option label="天" value="days"/><el-option label="个月" value="months"/><el-option label="年" value="years"/><el-option label="世纪" value="centuries"/></el-select>
+              </div>
+            </div>
+            <div class="oauth-threshold-help">年龄依据 GitHub 返回的账号创建时间计算。低于最低账号年龄时始终禁止注册；达到最低年龄但未达到免邀请码年龄时，若全站开启邀请码注册则需填写邀请码，否则可直接注册。设为 0 表示不限制；已有账号仍可登录。</div>
           </template>
           <template v-if="oauthForm.key === 'nodeloc'">
             <div class="setting-item" style="margin-top: 15px">
@@ -537,10 +540,15 @@
               <el-switch v-model="oauthForm.registerSwitch" :active-value="0" :inactive-value="1"/>
             </div>
             <div style="margin-top: 12px">
-              <div style="margin-bottom: 6px">新用户直接注册最低信任等级（0-4）</div>
-              <el-input-number v-model="oauthForm.minTrustLevel" :min="0" :max="4" :step="1"/>
-              <div style="margin-top: 12px;margin-bottom: 6px">免邀请码注册最低信任等级（0-4）</div><el-input-number v-model="oauthForm.noInviteTrustLevel" :min="0" :max="4" :step="1"/>
-              <div style="font-size: 12px;color: var(--el-text-color-secondary);margin-top: 4px">低于最低等级无法注册；达到最低等级但未达到免邀请码等级，开启邀请码注册时需填写邀请码。已绑定用户仍可登录。</div>
+              <div class="oauth-threshold">
+                <div class="oauth-threshold-label">新用户注册最低信任等级（0-4）</div>
+                <div class="oauth-threshold-controls"><el-input-number v-model="oauthForm.minTrustLevel" :min="0" :max="4" :step="1" controls-position="right" /></div>
+              </div>
+              <div class="oauth-threshold" style="margin-top: 12px">
+                <div class="oauth-threshold-label">免邀请码注册最低信任等级（0-4）</div>
+                <div class="oauth-threshold-controls"><el-input-number v-model="oauthForm.noInviteTrustLevel" :min="oauthForm.minTrustLevel" :max="4" :step="1" controls-position="right" /></div>
+              </div>
+              <div class="oauth-threshold-help">等级依据 NodeLoc 账号当前的信任等级判断。低于最低等级时始终禁止注册；达到最低等级但未达到免邀请码等级时，若全站开启邀请码注册则需填写邀请码，否则可直接注册。已绑定用户仍可登录。</div>
             </div>
           </template>
         </div>
@@ -1591,6 +1599,15 @@ function openOauthSetting(p) {
 
 function saveOauth() {
   const form = {}
+  // 免邀请码门槛不能低于最低注册门槛，保存时再做一次兜底校验。
+  const ageDays = (value, unit) => Math.max(0, Number(value) || 0) * ({ days: 1, months: 30.4375, years: 365.25, centuries: 36525 }[unit] || 1)
+  if (oauthForm.key === 'nodeloc') {
+    oauthForm.noInviteTrustLevel = Math.max(Number(oauthForm.minTrustLevel) || 0, Number(oauthForm.noInviteTrustLevel) || 0)
+  }
+  if (oauthForm.key === 'github' && ageDays(oauthForm.githubNoInviteAgeValue, oauthForm.githubNoInviteAgeUnit) < ageDays(oauthForm.githubMinAgeValue, oauthForm.githubMinAgeUnit)) {
+    oauthForm.githubNoInviteAgeValue = oauthForm.githubMinAgeValue
+    oauthForm.githubNoInviteAgeUnit = oauthForm.githubMinAgeUnit
+  }
   form[oauthForm.key + 'ClientId'] = oauthForm.clientId
   form[oauthForm.key + 'ClientSecret'] = oauthForm.clientSecret
   form[oauthForm.key + 'Switch'] = oauthForm.switch
@@ -1903,6 +1920,38 @@ function editSetting(settingForm, refreshStatus = true) {
   }
 }
 
+.oauth-threshold {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+  min-width: 0;
+}
+.oauth-threshold-label {
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.oauth-threshold-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.oauth-threshold-controls .el-input-number {
+  max-width: 100%;
+}
+.oauth-threshold-unit {
+  width: 112px;
+  max-width: 100%;
+}
+.oauth-threshold-help {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--el-text-color-secondary);
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
 .oauth-icon {
   width: 22px !important;
   height: 22px !important;

@@ -355,7 +355,7 @@ async function oauthGetUser() {
     bindTrustEnough.value = data.trustEnough !== false;
 
     if (data.needsInvite && data.notice) {
-      ElMessage({ message: data.notice, type: 'warning', duration: 5000, plain: true })
+      ElMessage({ message: data.notice, type: 'warning', duration: 7000, plain: true, customClass: 'oauth-threshold-message' })
     }
 
     if (!data.token) {
@@ -673,6 +673,23 @@ function submitRegister() {
 <style>
 .el-select-dropdown__item {
   padding: 0 15px;
+}
+
+/* OAuth 门槛提示在手机等窄屏上自动换行，避免提示内容被横向裁切。 */
+.oauth-threshold-message {
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.oauth-threshold-message .el-message__content {
+  min-width: 0;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.5;
 }
 
 .no-autofill-pwd {
